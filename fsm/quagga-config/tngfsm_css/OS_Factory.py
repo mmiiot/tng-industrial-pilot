@@ -396,6 +396,11 @@ class Ubuntu_implementation(OS_implementation):
         self.LOG.info("SFTP connection entering on %s", localpath)
         remotepath = '/tmp/50-cloud-init.cfg'
         sftpa = ftp.put(localpath, remotepath)
+        localpath = self.config_dir + '/50-cloud-init.cfg'
+        self.LOG.info("SFTP connection entering on %s", localpath)
+        remotepath = '/tmp/50-cloud-init.cfg'
+        sftpa = ftp.put(localpath, remotepath)
+
         ftp.close()
 
         self.LOG.info("Making sure .ssh directory exists")
@@ -442,6 +447,12 @@ class Ubuntu_implementation(OS_implementation):
         serr = ssh_stderr.read().decode('utf-8')
         self.LOG.info("stdout: {0}\nstderr:  {1}".format(sout, serr))
 
+        self.LOG.info("Displaying eth4 data")
+        ssh_stdin, ssh_stdout, ssh_stderr = ssh.exec_command("/sbin/ifconfig eth4")
+        sout = ssh_stdout.read().decode('utf-8')
+        serr = ssh_stderr.read().decode('utf-8')
+        self.LOG.info("stdout: {0}\nstderr:  {1}".format(sout, serr))
+
         self.LOG.info("Force ip forwarding")
         ssh_stdin, ssh_stdout, ssh_stderr = ssh.exec_command("echo '1' | sudo tee /proc/sys/net/ipv4/ip_forward")
         sout = ssh_stdout.read().decode('utf-8')
@@ -454,7 +465,7 @@ class Ubuntu_implementation(OS_implementation):
         serr = ssh_stderr.read().decode('utf-8')
         self.LOG.info("stdout: {0}\nstderr:  {1}".format(input_subnetwork, serr))
 
-        self.LOG.info("Delete extraneous rule on eth2 (output)")
+        self.LOG.info("Delete strange rule on eth2 (output)")
         #ssh_stdin, ssh_stdout, ssh_stderr = ssh.exec_command("sudo /sbin/ip route del {0} dev eth2".format(input_subnetwork))
         ssh_stdin, ssh_stdout, ssh_stderr = ssh.exec_command("sudo /sbin/ip route del {0} dev eth1".format(input_subnetwork))
         sout = ssh_stdout.read().decode('utf-8')
@@ -482,27 +493,7 @@ class Ubuntu_implementation(OS_implementation):
         self.LOG.info('stdout from remote: ' + my_ip)
         self.LOG.info('stderr from remote: ' + ssh_stderr.read().decode('utf-8'))
 
-        self.LOG.info('Port 80 to 3128 for {0}'.format(my_ip))
-        ssh_stdin, ssh_stdout, ssh_stderr = ssh.exec_command("sudo /sbin/iptables -t nat -A PREROUTING -i eth1 -p tcp -m tcp --dport 80 -j DNAT --to-destination '{0}:3128'".format(my_ip))
-        self.LOG.info('stdout from remote: ' + ssh_stdout.read().decode('utf-8'))
-        self.LOG.info('stderr from remote: ' + ssh_stderr.read().decode('utf-8'))
-
-        self.LOG.info("Redirecting port")
-        ssh_stdin, ssh_stdout, ssh_stderr = ssh.exec_command('sudo /sbin/iptables -t nat -A PREROUTING -i eth1 -p tcp -m tcp --dport 80 -j REDIRECT --to-ports 3128')
-        self.LOG.info('stdout from remote: ' + ssh_stdout.read().decode('utf-8'))
-        self.LOG.info('stderr from remote: ' + ssh_stderr.read().decode('utf-8'))
-
-        self.LOG.info("Setting masquerade")
-        #ssh_stdin, ssh_stdout, ssh_stderr = ssh.exec_command('sudo /sbin/iptables -t nat -A POSTROUTING -o eth2 -j MASQUERADE')
-        ssh_stdin, ssh_stdout, ssh_stderr = ssh.exec_command('sudo /sbin/iptables -t nat -A POSTROUTING -o eth1 -j MASQUERADE')
-        self.LOG.info('stdout from remote: ' + ssh_stdout.read().decode('utf-8'))
-        self.LOG.info('stderr from remote: ' + ssh_stderr.read().decode('utf-8'))
-
-        self.LOG.info("Accept in the filter table")
-        ssh_stdin, ssh_stdout, ssh_stderr = ssh.exec_command('sudo /sbin/iptables -t filter -A INPUT -p tcp --dport 3128 -j ACCEPT')
-        self.LOG.info('stdout from remote: ' + ssh_stdout.read().decode('utf-8'))
-        self.LOG.info('stderr from remote: ' + ssh_stderr.read().decode('utf-8'))
-        
+*****
         self.LOG.info("Configuration of quagga service")
         ssh_stdin, ssh_stdout, ssh_stderr = ssh.exec_command('sudo systemctl start quagga')
         self.LOG.info('stdout from remote: ' + ssh_stdout.read().decode('utf-8'))
