@@ -1,12 +1,104 @@
 {% extends "layout.html" %}
 {% block content %}
 <div class="content">
-<h2>Monitoring Machine<h2>
-<h3>Show last plots.</h3>
-<meta http-equiv="Refresh" content="3; url={{ url_for('monitoring') }}">
-
-<iframe src="{{ url_for('plotActSimPara') }}" height="500" width="100%" frameborder="0"></iframe>
-
-<iframe src="{{ url_for('plotActCntCyc') }}" height="500" width="100%" frameborder="0"></iframe>
+<h2>Monitoring</h2>
+<!-- fixed -->
+<table>
+  <tr>
+    <td>
+      <p>Actual Machine Status:
+        {% if varActStsMach=='0A000' %} <span style="background-color: #00ff00;">In Production</span> {% endif %}
+        {% if varActStsMach=='0C001' %} <span style="background-color: #ff0000; color: #ffffff;">Error</span> {% endif %}
+        {% if varActStsMach=='0C000' %} <span style="background-color: #0000ff; color: #ffffff;">Job Completed</span> Go to <strong><a href="{{ url_for('setup') }}">Setup</a></strong> for restart.{% endif %} <!-- 1C000 -->
+        {% if varActStsMach=='0U000' %} <span style="background-color: #ffff00;">Setup</span> Go to <strong><a href="{{ url_for('setup') }}">Setup</a></strong> for configuration.{% endif %} <!-- 0U001 -->
+        {% if varActStsMach=='0H000' %} <span style="background-color: #ffff00;">Pause</span> {% endif %}
+        {% if varActStsMach=='0I000' %} <span style="background-color: #ffff00;">Idle</span> {% endif %} <!-- 1I000 -->
+        ( {{ varActStsMach }} )
+      </p>
+    </td>
+    <td>
+      &nbsp;
+    </td>
+  </tr>
+</table>
+<!--
+<table>
+  <tr>
+    <td>
+      <p>|
+      {% if varActStsMach=='1I000' %}
+      <input type="radio" name="isformState" value="isformStateidle" checked>
+      {% else %}
+      <input type="radio" name="isformState" value="isformStateidle" disabled>
+      {% endif %} Idle |
+      {% if varActStsMach=='1U001' %}
+      <input type="radio" name="isformState" value="isformStatesetup" checked>
+      {% else %}
+      <input type="radio" name="isformState" value="isformStatesetup" disabled>
+      {% endif %} Set up |
+      {% if varActStsMach=='0A000' %}
+      <input type="radio" name="isformState" value="isformStateproduction" checked>
+      {% else %}
+      <input type="radio" name="isformState" value="isformStateproduction" disabled>
+      {% endif %} Production |
+      {% if varActStsMach=='0C001' %}
+      <input type="radio" name="isformState" value="isformStateerror" checked>
+      {% else %}
+      <input type="radio" name="isformState" value="isformStateerror" disabled>
+      {% endif %} Machine Error |
+      {% if varActStsMach=='0H000' %}
+      <input type="radio" name="isformState" value="isformStatepause" checked>
+      {% else %}
+      <input type="radio" name="isformState" value="isformStatepause" disabled>
+      {% endif %} Pause |
+      {% if varActStsMach=='1C000' %}
+      <input type="radio" name="isformState" value="isformStatefinished" checked>
+      {% else %}
+      <input type="radio" name="isformState" value="isformStatefinished" disabled>
+      {% endif %} Job Completed
+      | </p>
+    </td>
+    <td>
+      &nbsp;
+    </td>
+  </tr>
+</table>
+  -->
+<hr/>
+<table>
+  <tr>
+    <td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td><td><strong>Set Value</strong></td><td><strong>Actual Value</strong></td>
+  </tr>
+  <tr>
+    <td class="valueTabledesc">Number of Cavities Run:</td><td class="valueTableval">{{ varSetCntMld }}</td><td class="valueTableval">-</td>
+  </tr>
+  <tr>
+    <td class="valueTabledesc">Cycle Count:</td><td class="valueTableval">-</td><td class="valueTableval">{{ varActCntCyc }}</td>
+  </tr>
+  <tr>
+    <td class="valueTabledesc">Piece Counter:</td><td class="valueTableval">{{ varSetCntPrt }}</td><td class="valueTableval">{{ varActCntPrt }}</td>
+  </tr>
+  <tr>
+    <td class="valueTabledesc">Cycle Time:</td><td class="valueTableval">{{ varSetTimCyc }}</td><td class="valueTableval">{{ varActTimCyc }}</td>
+  </tr>
+  <tr>
+    <td class="valueTabledesc">Simulated Parameter 1:</td><td class="valueTableval">-</td><td class="valueTableval">{{ varATActSimPara1 }}</td>
+  </tr>
+  <tr>
+    <td class="valueTabledesc">Simulated Parameter 2:</td><td class="valueTableval">-</td><td class="valueTableval">{{ varATActSimPara2 }}</td>
+  </tr>
+</table>
+<hr/>
+<table>
+  <tr>
+    <td>
+      Last Refresh: {{ varDATE }} {{ varTIME }}
+    </td>
+    <td>
+      &nbsp;
+    </td>
+  </tr>
+</table>
 </div>
+<meta http-equiv="Refresh" content="1; url={{ url_for('monitoring') }}">
 {% endblock %}

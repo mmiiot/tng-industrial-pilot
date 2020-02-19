@@ -2,6 +2,74 @@
 {% block content %}
 <div class="content">
 <h2>About</h2>
-<p>The Machine Simulator simulates an injection moulding machine (IMM).</p>
+<p>The Machine Simulator simulates an injection molding machine (IMM).</p>
+<p>The Machine Simulator simulates machines:</p>
+<ul style=" list-style: none;">
+  <li>with EM63 protocol support
+    <ul style=" list-style: none;">
+      <li> <input type="radio" name ="dummy1" value="1" checked /> using Samba for data exchange (default)</li>
+      <li> <input type="radio" name ="dummy2" value="1" checked /> using local file share (../em63_share/) for data exchange (optional argument: --disableSamba)</li>
+      <li> <input type="radio" name ="dummy3" value="1" disabled /> using FTP for data exchange (currently not implemented)</li>
+    </ul>
+  </li>
+  <li> <input type="radio" name ="dummy4" value="1" checked /> with OPC UA protocol support for data exchange (optional: parameter --enableOPCUA)</li>
+</ul>
+
+<hr/>
+
+<h3>How to setup the machine simulator</h3>
+<ul>
+  <li>Go to <strong><a href="{{ url_for('setup') }}">Setup</a></strong></li>
+  <li>Select <strong>Parameter</strong></li>
+  <li>Modify Test parameter (optional)</li>
+  <li>Press Button <strong>Set Test Parameter Values</strong></li>
+  <li>Select <strong>Job</strong></li>
+  <li>Modify Job Parameter (optional)</li>
+  <li>Press Button Set Job Parameter</li>
+  <li>Select <strong>Machine State</strong></li>
+  <li>Select <strong>Production</strong></li>
+  <li>Go to <strong><a href="{{ url_for('monitoring') }}">Monitoring</a></strong></li>
+  <li>Consider the machine states:</li>
+</ul>
+
+<hr/>
+
+<h3>Machine States</h3>
+<div id="div2" style="float:left; height:100%; width:100%; background-color:#eeeeee;">
+  <div id="div2left" style="float:left; width:35%;">
+    Selectable machine states:
+    <p><input type="radio" name="formState" value="formStateidle" disabled>Idle/Setup</p>
+  <!--  <p><input type="radio" name="formState" value="formStatesetup" disabled>Set up (not selectable)</p> -->
+    <p><input type="radio" name="formState" value="formStateproduction" disabled>Production</p>
+    <p><input type="radio" name="formState" value="formStateerror" disabled>Machine Error</p>
+    <p><input type="radio" name="formState" value="formStatepause" disabled>Pause</p>
+  <!--  <p><input type="radio" name="formState" value="formStatefinished" disabled>Job Completed</p> -->
+
+  Note:
+  <ul>
+  <li>Select <b>Idle</b> when a job was finished.</li>
+  <li>Select <b>Machine Error</b> to simulate a machine error.</li>
+  <li>Select <b>Pause</b> to pause the machine.</li>
+  <li>Select <b>Production</b> to start production or continue after pause or machine error.</li>
+  </ul>
+  </div>
+  <div id="div2right" style="float:left; width:65%;">
+    <img src="{{ url_for('static', filename='img/statemachine.png') }}" alt="Statemachine description" width="50%">
+  </div>
 </div>
+<p>&nbsp;</p>
+
+<h3>Network</h3>
+<div id="div2" style="float:left; height:100%; width:100%; background-color:#eeeeee;">
+If the website configuration takes to much time for loading check your network
+configuration.
+If you use a static network configuration, check the gateway and DNS address.
+Problem occurs, if DNS and gateway address are set but not reachable. 
+</div>
+<p>&nbsp;</p>
+
+
+<hr/>
+</div>
+
 {% endblock %}

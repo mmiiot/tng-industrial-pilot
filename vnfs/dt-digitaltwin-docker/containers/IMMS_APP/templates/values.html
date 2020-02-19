@@ -1,0 +1,13 @@
+<p>Actual Machine Status: {{ varActStsMach }}</p>
+<hr/>
+<p>Piece Counter Setpoint: {{ varSetCntPrt }}</p>
+<p>Number of Cavities Run: {{ varSetCntMld }}</p>
+<p>Overall Cycle Time Setpoint: {{ varSetTimCyc }}</p>
+<hr/>
+<p>Actual Cycle Count: {{ varActCntCyc }}</p>
+<p>Piece Counter: {{ varActCntPrt }}</p>
+<p>Actual Cycle Time: {{ varActTimCyc }}</p>
+<hr/>
+<p>Actual Simulated Parameter 1:  {{ varATActSimPara1 }}</p>
+<p>Actual Simulated Parameter 2:  {{ varATActSimPara2 }}</p>
+<meta http-equiv="Refresh" content="1; url={{ url_for('values') }}">

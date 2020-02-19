@@ -35,13 +35,32 @@ Request data using session and job files in EM63 shared session folder
 When job is finished switch from machine state job completed back to idle
 Select Setup &rarr; Machine State &rarr; Select Idle
 
+# Packages
+Particular packages are useful; check which is needed.
+```sh
+$~ apt install python3-lxml python-lxml libxml2-dev libxslt-dev python-dev
+$~ apt-install smbclient
+```
 # Modules needed
+Before installing new packages via pip
+```sh
+pip3 install --upgrade pip
+```
+Install new packages via pip
 ```sh
 $~ pip3 install python-statemachine --user
 $~ pip3 install Flask --user
+$~ pip3 install opcua 
+$~ pip3 install opcua-client
+$~ pip3 install pysmb
+$~ pip3 install netifaces
+```
+Numby and Plotly are not longer needed, but you can install it
+```sh
 $~ pip3 install numpy --user
 $~ pip3 install plotly --user
 ```
+
 
 # OPC UA Support
 With `--enableOPCUA` you can enable an integrated OPC UA server.

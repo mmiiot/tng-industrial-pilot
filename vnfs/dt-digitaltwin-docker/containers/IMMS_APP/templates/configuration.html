@@ -1,0 +1,136 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="content">
+<h2>Machine Configuration<h2>
+<h3></h3>
+<div class="w3-sidebar" style="width:130px">
+<button class="w3-button tablink" onclick="openLink(event, 'network')">Network Interface</button>
+<button class="w3-button tablink" onclick="openLink(event, 'em63')">Euromap 63 </button>
+<button class="w3-button tablink" onclick="openLink(event, 'opcua')">OPC UA </button>
+</div>
+
+<div style="margin-left:130px">
+<div id="network" class="city">
+<h3>Network Interface</h3>
+<p>Static network configuration is currently not implemented. </p>
+<hr/>
+<form action = "resultNetwork" method = "POST">
+<p><input type = "submit" value = "Set Network Configuration" disabled/> DHCP is enabled. </p>
+</form>
+<hr/>
+<form action = "resultNetworkInterface" method = "POST">
+<p><input type = "submit" value = "Select new interface"/>
+  <select name="formNetworkInterace">
+    <option>{{ my_interfaces[0] }}</option>
+    <option>{{ my_interfaces[1] }}</option>
+    <option>{{ my_interfaces[2] }}</option>
+    <option>{{ my_interfaces[3] }}</option>
+    <option>{{ my_interfaces[4] }}</option>
+    <option>{{ my_interfaces[5] }}</option>
+    <option>{{ my_interfaces[6] }}</option>
+  </select>
+   </p>
+</form>
+<p>Interface selected: {% if my_interface_0!=-1 %} {{ my_interface_0 }} {% else %} none {% endif %} </p>
+{% if my_ip_0!=-1 %}
+<p>IP Address<input type="text" name = "formNetIP" value="{{ my_ip_0 }}" disabled/></p>
+{% else %}
+<p>IP Address<input type="text" name = "formNetIP" value="not supported" disabled/></p>
+{% endif %}
+{% if my_netmask_0!=-1 %}
+<p>Subnet <input type="text" name = "formNetSubnet" value="{{ my_netmask_0 }}" disabled/></p>
+{% else %}
+<p>Subnet <input type="text" name = "formNetSubnet" value="not supported" disabled/></p>
+{% endif %}
+
+{% if my_gateway_0!=-1 %}
+<p>Gateway <input type="text" name = "formNetGateway" value="{{ my_gateway_0 }}" disabled/></p>
+<p>DNS <input type="text" name = "formNetDNS" value="{{ my_gateway_0 }}" disabled/></p>
+{% else %}
+<p>Gateway <input type="text" name = "formNetGateway" value="not supported" disabled/></p>
+<p>DNS <input type="text" name = "formNetDNS" value="not supported" disabled/></p>
+{% endif %}
+
+<hr/>
+
+</div>
+
+<div id="em63" class="city" style="display:none">
+<h3>Euromap 63 Interface</h3>
+<p>Set the path and credentials for Euromap 63 interface.</p>
+<form action = "resultEM63" method = "POST">
+<hr/>
+<p><input type = "submit" value = "Set Euromap 63 Interface" /></p>
+<hr/>
+<p>
+{% if sambaIsEnabled==True %}
+<span style="background-color: #00ff00;">Samba is enabled. </span>
+{% if smbConnectSuccessful==True %}
+<span style="background-color: #00ff00;">Samba is connected. </span>
+{% else %}
+<span style="background-color: #ff0000; color: white;">Samba is not connected. </span>
+{% endif %}
+{% else %}
+<span style="background-color: #ff0000; color: white;">Samba is disabled (use local file share). </span>
+{% endif %}
+</p>
+<hr/>
+<p>Session folder path <input type="text" name = "formEM63path" value="{{ filepathEM63 }}"/></p>
+{% if sambaIsEnabled==True %}
+<p>User and Password can be empty. Using variable $USER is not allowed.</p>
+<p>Host <input type="text" name = "formEM63host" value="{{ smb_host }}" /></p>
+<p>Host name <input type="text" name = "formEM63hostname" value="{{ smb_hostname }}" /></p>
+<p>User <input type="text" name = "formEM63user" value="{{ smb_username }}"/></p>
+<p>Password <input type="password" name = "formEM63pass" value="{{ smb_password }}" /></p>
+{% else %}
+<p>User and Password can be empty. Using variable $USER is not allowed.</p>
+<p>Host <input type="text" name = "formEM63host" value="{{ smb_host }}" disabled /></p>
+<p>Host name <input type="text" name = "formEM63hostname" value="{{ smb_hostname }}" disabled /></p>
+<p>User <input type="text" name = "formEM63user" value="{{ smb_username }}" disabled/></p>
+<p>Password <input type="password" name = "formEM63pass" value="{{ smb_password }}" disabled /></p>
+{% endif %}
+<hr/>
+<p>GETID</p>
+ <textarea id="test" name="getidtext" cols="80" rows="5" disabled>{{ txtGETID }}</textarea>
+<hr/>
+<p>GETINFO</p>
+ <textarea id="text" name="getinfotext" cols="80" rows="5" disabled>{{ txtGETINFO }}</textarea>
+<hr/>
+</form>
+</div>
+
+<div id="opcua" class="city" style="display:none">
+<h3>OPC UA Interface</h3>
+{% if opcuaIsEnabled==True %}
+<p><span style="background-color: #00ff00;">OPC UA is enabled</span></p>
+<p>opc.tcp://localhost:4840</p>
+{% if my_ip_0!=-1 %} <p>opc.tcp://{{ my_ip_0 }}:4840 {% if my_interface_0!=-1 %} (Interface: {{ my_interface_0 }} ) {% else %} none {% endif %} </p> {% endif %}
+{% if my_ip_1!=-1 %} <p>opc.tcp://{{ my_ip_1 }}:4840</p> {% endif %}
+{% if my_ip_2!=-1 %}<p>opc.tcp://{{ my_ip_2 }}:4840</p> {% endif %}
+{% else %}
+<p><span style="background-color: #ff0000; color: white;">OPC UA is not enabled</span></p>
+<p>OPC UA is available if optional argument is used while starting: --enableOPCUA (see help: --help)</p>
+{% endif %}
+
+
+</div>
+
+</div>
+</div>
+
+<script>
+function openLink(evt, animName) {
+  var i, x, tablinks;
+  x = document.getElementsByClassName("city");
+  for (i = 0; i < x.length; i++) {
+     x[i].style.display = "none";
+  }
+  tablinks = document.getElementsByClassName("tablink");
+  for (i = 0; i < x.length; i++) {
+     tablinks[i].className = tablinks[i].className.replace(" w3-red", "");
+  }
+  document.getElementById(animName).style.display = "block";
+  evt.currentTarget.className += " w3-red";
+}
+</script>
+{% endblock %}

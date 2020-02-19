@@ -28,10 +28,10 @@
 
 """
     File name: IMMS_APP.py
-    Description: Injection Moulding Machine Simulator (IMMS)
+    Description: Injection Molding Machine Simulator (IMMS)
     Version: 2018-12-28
     Python Version: 3.6.7
-    Editor: Spyder (indentation characters: 4 spaces)
+    Editor: Spyder, Atom (indentation characters: 4 spaces)
     Maintainer: Marcel Müller <Marcel.Mueller@weidmueller.com>
     Copyright: 2018, Marcel Müller, Weidmüller Group, Detmold, Germany
 """
@@ -43,15 +43,104 @@ import sys
 import time
 import datetime
 import threading
-import argparse
+#import argparse
 from statemachine import StateMachine, State
 from flask import Flask, render_template, request
 from em63 import rmFile
-import plotly
-import plotly.graph_objs as go
+#import plotly
+#import plotly.graph_objs as go
 import numpy as np
 from opcua import ua, Client, Server
-from samba.samba_access import SambaAccess
+from samba_access import SambaAccess
+#import socket # finding ip address used for websocket, get_ip_address
+import netifaces as iface # finding ip address used for iface see get_ip_iface
+from getnetworks import get_ip_address, get_ip_iface, get_netmask_iface, get_gateway_iface
+from manualargs import parse_args
+from pi3rgbled import setuppi3rgbled, statusled #setupled, finishedled, alarmled, runled, pauseled, offled
+
+pi3IsEnabled_ini = 1
+if pi3IsEnabled_ini == 1:
+    setuppi3rgbled_ini = setuppi3rgbled(pi3IsEnabled_ini) # error: -1
+    if setuppi3rgbled_ini < 0:
+        pi3IsEnabled_ini = 0 # disable
+    else:
+        pi3IsEnabled_ini = 1 # enable
+    print("setup pi3 rgb led ini " + str(setuppi3rgbled_ini))
+
+# if pi3IsEnabled_ini:
+#     # sudo pip3 install rpi_ws281x adafruit-circuitpython-neopixel
+#     # sudo python3 neopixeltest1.py
+#     # Wiring for Raspberry Pi 3B+ and NeoPixelRing12
+#     # PWR to 5V Pin
+#     # GND to GND Pin
+#     # IN to GPIO21
+#     import board
+#     import neopixel
+#     # import time
+#     # The number of NeoPixels
+#     pi_num_pixels = 12
+#     # Pin for NeoPixels
+#     pi_pixels_gpio = board.D21
+#     pixels = neopixel.NeoPixel(pi_pixels_gpio, pi_num_pixels)
+#     # Define brightness (1,2,..,10)
+#     brightled = 1
+#     if (brightled<0):
+#         brightled = 0
+#     if (brightled>10):
+#         brightled = 10
+#
+#     def setupled(wait_periodtime):
+#         pauseled(wait_periodtime)
+#         return 0
+#
+#     def finishedled(wait_periodtime):
+#         pixels.fill((25*brightled, 25*brightled, 0))
+#         pixels.show()
+#         if(wait_periodtime>0):
+#             time.sleep(wait_periodtime/2)
+#         else:
+#             time.sleep(0.5)
+#         pixels.fill((0, 0, 0))
+#         pixels.show()
+#         if(wait_periodtime>0):
+#             time.sleep(wait_periodtime/2)
+#         else:
+#             time.sleep(0.5)
+#         return 0
+#
+#     def alarmled(wait_periodtime):
+#         pixels.fill((25*brightled, 0, 0))
+#         pixels.show()
+#         if(wait_periodtime>0):
+#             time.sleep(wait_periodtime/2)
+#         else:
+#             time.sleep(0.5)
+#         pixels.fill((0, 0, 0))
+#         pixels.show()
+#         if(wait_periodtime>0):
+#             time.sleep(wait_periodtime/2)
+#         else:
+#             time.sleep(0.5)
+#         return 0
+#
+#     def runled(wait_periodtime):
+#         pixels.fill((0, 25*brightled, 0))
+#         pixels.show()
+#         if(wait_periodtime>0):
+#             time.sleep(wait_periodtime)
+#         return 0
+#
+#     def pauseled(wait_periodtime):
+#         pixels.fill((25*brightled, 25*brightled, 0))
+#         pixels.show()
+#         if(wait_periodtime>0):
+#             time.sleep(wait_periodtime)
+#         return 0
+#
+#     def offled():
+#         pixels.fill((0, 0, 0))
+#         pixels.show()
+#         return 0
 
 app = Flask(__name__)
 
@@ -76,6 +165,7 @@ varTIME = 0  # YYYYMMDD
 varATActSimPara1 = 0  # Constant value from formATActSimPara1
 varATActSimPara2 = 0
 varActStsMach = '0U000'  # Machine state
+varLastActStsMach = '0'
 varActCntCyc = 0  # Actual number of cycles already done
 varActCntPrt = 0  # Actual number of parts already produced
 varActTimCyc = 0  # Actual cycle time
@@ -110,17 +200,24 @@ varFormState = 'none'
 varFormEM63path = ''
 varFormEM63user = ''
 varFormEM63pass = ''
+varFormEM63host = ''
+varFormEM63hostname = ''
+
+varFormNetworkInterface = ''
 
 session = 0  # Increment session for further em63 sessions
 
 # Get configuration from environment varialbe (or use the old default)
-filepathEM63 = os.environ.get("DT_EM63_SHARE", "../em63_share")
+filepathEM63 = os.environ.get("DT_EM63_SHARE", "../em63_share/")
 
 # get and set EM63 connection
-smb_host = os.environ.get("DT_EM63_SHARE_HOST", "10.200.16.35")
+#smb_host = os.environ.get("DT_EM63_SHARE_HOST", "10.200.16.17")
+smb_host = os.environ.get("DT_EM63_SHARE_HOST", "10.220.0.131")
 smb_username = os.environ.get("DT_EM63_USERNAME", "Alice")
 smb_hostname = os.environ.get("DT_EM63_HOSTNAME", "IMMS")
+smb_password = os.environ.get("DT_EM63_PASSWORD", "") # unused
 smb = SambaAccess(smb_host, username=smb_username, hostname=smb_hostname)
+smbConnectSuccessful = False # default value
 
 valEM63 = [
         [txtDATE, varDATE, desDATE],
@@ -136,37 +233,43 @@ valEM63 = [
         [txtSetTimCyc, varSetTimCyc, desSetTimCyc]
         ]
 
+
 # Create static content for GETID
 txtGETID = ''
 for index in range(2, len(valEM63)):
     txtGETID = txtGETID + valEM63[index][0] + valEM63[index][2] + '\n'
 
-# Static Content for GETINFO if no text file available
-txtGETINFO = """MachVendor,	"xxx";
-MachNbr,	"xxx";
-MachDesc,	"xxx";
-ContrType,	"xxx";
-ContrVersion,	"xxx";
-Version,	"xxx";
-MaxJobs,	x;
+# Static Content for GETINFO
+txtGETINFO = """MachVendor,	"Weidmueller";
+MachNbr,	        "00001";
+MachDesc,	        "Weidmueller IMM Simulator";
+ContrType,	        "WIMMS";
+ContrVersion,	    "1.0";
+Version,	        "2020-02-07";
+MaxJobs,	        3;
 MaxEvents,
-    CURRENT_ALARMS	x
-    ALARMS	x
-    CHANGES	x;
-MaxReports,	x;
-MaxArchives,	x;
-InjUnitNbr,	x;
-MaterialNbr,	"x";
-CharDef,	"x";
-MaxSessions,	x;
-ActiveJobs,
-    "x";
-ActiveReports,	;
-ActiveEvents,	;
+	CHANGES	        0
+	CURRENT_ALARMS	0
+	ALARMS	        0;
+MaxReports,	        3;
+MaxArchives,	    0;
+InjUnitNbr,	        ;
+MaterialNbr,	    ;
+CharDef,	        "850";
+MaxSessions,	    3;
+ActiveJobs,	        ;
+ActiveReports,	    ;
+ActiveEvents,	    ;
 """
 
 OPCUA_HOST = os.environ.get("OPCUA_HOST", "0.0.0.0")
 OPCUA_PORT = os.environ.get("OPCUA_PORT", "4840")
+
+opcuaIsEnabled = False # default value; is enabled by argument --enableOPCUA
+sambaIsEnabled = True # default value; enable euromap 63 via samba
+playbackIsEnabled = False # Playback  mode
+tocuh5inchIsEnabled = False # default value; no 5 inch touch is used
+pi3IsEnabled = False # default value; no raspberry pi 3 is used with RGB LED
 
 @app.route('/')
 def home():
@@ -177,25 +280,87 @@ def home():
 def about():
     return render_template('about.html')
 
-
 @app.route('/setup', methods=['GET', 'POST'])
 def setup():
-    return render_template('setup.html')
+    return render_template('setup.html', varActStsMach=varActStsMach,
+    varSetCntPrt=varSetCntPrt, varSetCntMld=varSetCntMld,
+    varSetTimCyc=varSetTimCyc, playbackIsEnabled=playbackIsEnabled)
+
+@app.route('/configuration', methods=['GET', 'POST'])
+def configuration():
+    # Check IP for ext. network
+    my_ip_1 = get_ip_address("www.weidmueller.com")
+    #if (my_ip_1 == -1):
+    #    print("No DNS or no network or no route.")
+    #    my_ip_1 = "localhost"
+    # Check IP for int. network
+    my_ip_2 = get_ip_address("10.220.0.2")
+    #if (my_ip_2 == -1):
+    #    print("No network or no route.")
+    #    my_ip_2 = "localhost"
+
+    # List the network interfaces that are available
+    try:
+        my_interfaces = iface.interfaces()
+        print("Interfaces: " + str(my_interfaces))
+    except:
+        my_interfaces = -1
+    # Check if the network list is filled and use one entry
+    # Use which is defined by web gui; default: the first in the list
+    # e.g. ['lo', 'enp0s31f6', 'wwp0s20f0u6', 'wlp61s0', 'docker0']
+    if ((my_interfaces != -1) and (my_interfaces != '')):
+        if ((varFormNetworkInterface != '') and (varFormNetworkInterface in my_interfaces)):
+            my_interface_0 = varFormNetworkInterface
+        else:
+            my_interface_0 = my_interfaces[0]
+        # Request IP, Subnetmask and def. gateway of interface selected
+        if (my_interface_0 in my_interfaces):
+            my_ip_0 = get_ip_iface(my_interface_0)
+            my_netmask_0 = get_netmask_iface(my_interface_0)
+            my_gateway_0 = get_gateway_iface(my_interface_0)
+            print("Interface: " + str(my_interface_0))
+            print("IP: " + str(my_ip_0))
+            print("Subnet mask: " + str(my_netmask_0))
+            print("Default gateway: " + str(my_gateway_0))
+    # default if no list of network interfaces is available
+    else:
+        my_interface_0 = -1
+        my_ip_0 = -1
+        my_netmask_0 = -1
+        my_gateway_0 = -1
+        print("Interface: " + str(my_interface_0))
+        print("IP: " + str(my_ip_0))
+        print("Subnet mask: " + str(my_netmask_0))
+        print("Default gateway: " + str(my_gateway_0))
+
+    return render_template('configuration.html', varActStsMach=varActStsMach,
+    opcuaIsEnabled=opcuaIsEnabled, smbConnectSuccessful=smbConnectSuccessful,
+    sambaIsEnabled=sambaIsEnabled,
+    my_interface_0=my_interface_0, my_ip_0=my_ip_0, my_netmask_0=my_netmask_0,
+    my_gateway_0=my_gateway_0, my_ip_1=my_ip_1, my_ip_2=my_ip_2,
+    filepathEM63=filepathEM63, smb_host=smb_host, smb_username=smb_username,
+    smb_hostname=smb_hostname, smb_password=smb_password,
+    txtGETID=txtGETID, txtGETINFO=txtGETINFO, my_interfaces=my_interfaces)
 
 
 @app.route('/monitoring')
 def monitoring():
-    return render_template('monitoring.html')
+    return render_template('monitoring.html',varSetCntPrt=varSetCntPrt,
+    varSetCntMld=varSetCntMld, varSetTimCyc=varSetTimCyc,
+    varATActSimPara1=varATActSimPara1, varATActSimPara2=varATActSimPara2,
+    varActStsMach=varActStsMach, varActCntCyc=varActCntCyc,
+    varActCntPrt=varActCntPrt, varActTimCyc=varActTimCyc,
+    varDATE=varDATE, varTIME=varTIME)
 
 
-@app.route('/plotActSimPara')
-def plotActSimPara():
-    return render_template('plotActSimPara.html')
+#@app.route('/plotActSimPara')
+#def plotActSimPara():
+#    return render_template('plotActSimPara.html')
 
 
-@app.route('/plotActCntCyc')
-def plotActCntCyc():
-    return render_template('plotActCntCyc.html')
+#@app.route('/plotActCntCyc')
+#def plotActCntCyc():
+#    return render_template('plotActCntCyc.html')
 
 
 @app.route('/resultSimPara', methods=['GET', 'POST'])
@@ -203,10 +368,10 @@ def resultSimPara():
     global varATActSimPara1
     global varATActSimPara2period, varATActSimPara2amplitude
     global varATActSimPara2phase, varATActSimPara2offset, varPlotATActSimPara
-    if request.form['formPlotATActSimPara'] == '1':
-        varPlotATActSimPara = 1
-    else:
-        varPlotATActSimPara = 0
+    #if request.form['formPlotATActSimPara'] == '1':
+    #    varPlotATActSimPara = 1
+    #else:
+    varPlotATActSimPara = 0
     varATActSimPara1 = int(request.form['formATActSimPara1'])
     varATActSimPara2period = float(request.form['formATActSimPara2period'])
     varATActSimPara2amplitude = \
@@ -239,7 +404,7 @@ def resultSimPara():
     return render_template("result.html", result=result)
 
 
-@app.route('/result', methods=['GET', 'POST'])
+@app.route('/resultSetup', methods=['GET', 'POST'])
 def result():
     global varActStsMach, varSetCntMld, varSetCntPrt, varSetTimCyc
     varSetCntMld = int(request.form['formSetCntMld'])
@@ -264,16 +429,27 @@ def resultNetwork():
     print("Currently not supported. Please use /etc/network/interfaces")
     return render_template("result.html", result=result)
 
+@app.route('/resultNetworkInterface', methods=['GET', 'POST'])
+def resultNetworkInterface():
+    global varFormNetworkInterface
+    varFormNetworkInterface = request.form['formNetworkInterace']
+    print("Interface selected: " + str(varFormNetworkInterface))
+    return render_template("resultConfig.html", result=result)
 
 @app.route('/resultEM63', methods=['GET', 'POST'])
 def resultEM63():
-    global varFormEM63path, varFormEM63user, varFormEM63pass, filepathEM63
+    global varFormEM63path, varFormEM63user, varFormEM63pass, filepathEM63, varFormEM63host, varFormEM63hostname
     varFormEM63path = request.form['formEM63path']
-    varFormEM63user = request.form['formEM63user']
-    varFormEM63pass = request.form['formEM63pass']
     print("EM63 Path = ", varFormEM63path)
-    print("EM63 User = ", varFormEM63user)
-    print("EM63 Pass = ", varFormEM63pass)
+    if sambaIsEnabled:
+        varFormEM63user = request.form['formEM63user']
+        varFormEM63pass = request.form['formEM63pass']
+        varFormEM63host = request.form['formEM63host']
+        varFormEM63hostname = request.form['formEM63hostname']
+        print("EM63 Host = ", varFormEM63host)
+        print("EM63 Hostname = ", varFormEM63hostname)
+        print("EM63 User = ", varFormEM63user)
+        print("EM63 Pass = ", varFormEM63pass)
     return render_template("result.html", result=result)
 
 
@@ -295,7 +471,7 @@ def start_webapp():
 
 def _start_EM63():
     while True:
-        run_EM63()
+        run_EM63(samba=sambaIsEnabled)
         time.sleep(.2)  # lets sleep a bit, to not utilize our CPU for 100% with this thread
 
 
@@ -332,6 +508,26 @@ def start_OPCUA_client():
     thread3.start()
     return
 
+def _start_rgb_led():
+    # Signals machine status via RGB LED NeoPixel ring
+    global varActStsMach, varLastActStsMach
+    while True:
+        # Check if status is changed; change led if changed or blink is needed
+        if (varActStsMach == varLastActStsMach):
+            if (varActStsMach == '0H000' or varActStsMach == '0C000'):
+                statusled(varActStsMach)
+            else:
+                time.sleep(1)  # lets sleep a bit
+        else:
+            statusled(varActStsMach)
+            varLastActStsMach=varActStsMach
+
+
+
+def start_rgb_led():
+    thread4 = threading.Thread(target=_start_rgb_led)
+    thread4.daemon = True
+    thread4.start()
 
 def make_ATActSimPara2(t1):
     global varATActSimPara2period, varATActSimPara2amplitude
@@ -355,14 +551,16 @@ def production():
             return IMM1.e_pause()
         if varFormState == 'formStateerror':
             return IMM1.e_error()
-        if varPlotATActSimPara == 1:
+        #if varPlotATActSimPara == 1:
             # List for graph plottig
-            sinPlotX = []
-            sinPlotY = []
-            sinPlotY2 = []
-            sinPlotY3 = []
+        #    sinPlotX = []
+        #    sinPlotY = []
+        #    sinPlotY2 = []
+        #    sinPlotY3 = []
         while varActCntPrt < varSetCntPrt:
             varActStsMach = '0A000'
+            #if pi3IsEnabled:
+            #    runled(0)
             if varFormState == 'formStatepause':
                 return IMM1.e_pause()
             if varFormState == 'formStateerror':
@@ -373,24 +571,26 @@ def production():
             t1 = time.monotonic()
             # Sine function for @ActSimPara2
             varATActSimPara2 = make_ATActSimPara2(t1)
-            if varPlotATActSimPara == 1:
+            # if varPlotATActSimPara == 1:
                 # Append content to list for graph plotting
                 # sinPlotX.append(float(t1))
-                sinPlotX.append(datetime.datetime.now())
-                sinPlotY.append(float(varATActSimPara2))
-                sinPlotY2.append(float(varATActSimPara1))
-                sinPlotY3.append(float(varActTimCyc))
+                # sinPlotX.append(datetime.datetime.now())
+                # sinPlotY.append(float(varATActSimPara2))
+                # sinPlotY2.append(float(varATActSimPara1))
+                # sinPlotY3.append(float(varActTimCyc))
+
+            # Sleep for cycle time simulation
+            time.sleep(varSetTimCyc)
             # Part/Cycle counter
             varActCntCyc = varActCntCyc + 1
-            time.sleep(varSetTimCyc)
             varActCntPrt = int(varSetCntMld * varActCntCyc)
             # Stop Timer for ActTimCyc
             t2 = time.monotonic()
             dt = t2 - t1
             varActTimCyc = format(dt, '8.4f')
             valEM63print()
-            if varPlotATActSimPara == 1:
-                plotAllLocal(sinPlotX, sinPlotY, sinPlotY2, sinPlotY3)
+#            if varPlotATActSimPara == 1:
+#                plotAllLocal(sinPlotX, sinPlotY, sinPlotY2, sinPlotY3)
             if varActCntPrt >= varSetCntPrt:
                 print("Job finished...")
                 return
@@ -410,6 +610,9 @@ def finished():
             varActTimCyc = 0
             return
         else:
+            #if pi3IsEnabled:
+            #    finishedled(1)
+            #else:
             time.sleep(1)  # waiting
 
 
@@ -488,11 +691,14 @@ def remove_prefix(filepath, prefix=filepathEM63):
 
 def file_exists(filepath, samba=False):
     """Return if the specified file exists"""
+    global smbConnectSuccessful
     if samba:
         filename = remove_prefix(filepath)
         exists = smb.exists_file(filename)
+        smbConnectSuccessful=True
     else:
         exists = os.path.exists(filepath)
+        smbConnectSuccessful=False
     print("Check if {} exists: {}".format(filepath, exists))
     return exists
 
@@ -535,7 +741,7 @@ def file_delete(filepath, samba=False):
 
 def run_EM63(samba=True):
     """If samba=False, read/write files from local (mounted) file system, else connect via Samba"""
-    global varDATE, varTIME, filepathEM63, varFormEM63path, session, valEM63
+    global varDATE, varTIME, filepathEM63, varFormEM63path, session, valEM63, varFormEM63host, varFormEM63hostname, varFormEM63user, varFormEM63pass, smb_host, smb_hostname, smb_username, smb_password, smb
     session = session + 1
     if session > 3:
         session = 1
@@ -545,9 +751,36 @@ def run_EM63(samba=True):
     varDATE = datetime.datetime.now().strftime("%Y%m%d")
     varTIME = datetime.datetime.now().strftime("%H:%M:%S")
 
-    if varFormEM63path != '':
+    if ((filepathEM63 != varFormEM63path) and varFormEM63path != ''):
         filepathEM63 = varFormEM63path
-        varFormEM63path = ''
+        print("EM63 path changed")
+    varFormEM63path = ''
+
+    if ((smb_host != varFormEM63host) and varFormEM63host != ''):
+        smb_host = varFormEM63host
+        print("EM63 Smb host changed")
+        smb = SambaAccess(smb_host, username=smb_username, hostname=smb_hostname)
+        print(smb)
+    varFormEM63host = ''
+
+    if ((smb_hostname != varFormEM63hostname) and varFormEM63hostname != ''):
+        smb_hostname = varFormEM63hostname
+        print("EM63 Smb hostname changed")
+        smb = SambaAccess(smb_host, username=smb_username, hostname=smb_hostname)
+    varFormEM63hostname = ''
+
+    if ((smb_username != varFormEM63user) and varFormEM63user != ''):
+        smb_username = varFormEM63user
+        print("EM63 Smb user changed")
+        smb = SambaAccess(smb_host, username=smb_username, hostname=smb_hostname)
+    varFormEM63user = ''
+
+    if ((smb_password != varFormEM63pass) and varFormEM63pass != ''):
+        smb_password = varFormEM63pass
+        print("EM63 Smb password changed")
+        smb = SambaAccess(smb_host, username=smb_username, hostname=smb_hostname)
+    varFormEM63pass = ''
+
     if filepathEM63 == '':
         print("EM63 path is not defined.")
         time.sleep(2)
@@ -612,12 +845,12 @@ def run_EM63(samba=True):
                 datFile = re.search('"(.+?)"', line).group(1)
                 datFile = filepathEM63 + datFile
                 # Check if local copy of GETINFO.DAT exists: GETINFO.conf
-                if file_exists("GETINFO.conf", samba=samba):
+                #if file_exists("GETINFO.conf", samba=samba):
                     # use it
-                    confFileBody = file_read('GETINFO.conf', samba=samba)
-                    file_write(datFile, confFileBody, samba=samba)
-                else:
-                    file_write(datFile, txtGETINFO, samba=samba)
+                #    confFileBody = file_read('GETINFO.conf', samba=samba)
+                #    file_write(datFile, confFileBody, samba=samba)
+                #else:
+                file_write(datFile, txtGETINFO, samba=samba)
                 txtLOG = 'COMMAND 2 PROCESSED "GETINFO command" ' \
                     + str(varDATE) + ' ' + str(varTIME) + ';'
                 # print(txtLOG)
@@ -681,6 +914,8 @@ def run_EM63(samba=True):
 
 
 def run_OPCUA_server_start():
+    global opcuaIsEnabled
+    opcuaIsEnabled = True
     print("Starting OPC UA SERVER %s:%s" % (OPCUA_HOST, OPCUA_PORT))
     # setup our server
     server = Server()
@@ -775,19 +1010,24 @@ class vIMM(StateMachine):
     def on_enter_s_idle(self):
         global varActStsMach, varActCntPrt, varActCntCyc, varSetCntMld
         global varSetCntPrt, varSetTimCyc, varActTimCyc
-        varActStsMach = '1I000'
+        varActStsMach = '0I000'
         varSetCntMld = 0
         varSetCntPrt = 0
         varSetTimCyc = 0
         varActCntCyc = 0
         varActCntPrt = 0
         varActTimCyc = 0
+
+        #if pi3IsEnabled:
+        #    offled()
         return
 
     def on_enter_s_setup(self):
         # Initial parameters set by API
         global varActStsMach, varFormState
-        varActStsMach = '1U001'
+        varActStsMach = '0U000'
+        #if pi3IsEnabled:
+        #    setupled(0)
         return
 
     def on_enter_s_production(self):
@@ -812,6 +1052,9 @@ class vIMM(StateMachine):
             if varFormState == 'formStateproduction':
                 self.e_confirm()
             else:
+                #if pi3IsEnabled:
+                #    alarmled(1)
+                #else:
                 time.sleep(1)
 
     def on_s_pause(self):
@@ -819,11 +1062,14 @@ class vIMM(StateMachine):
             if varFormState == 'formStateproduction':
                 self.e_proceed()
             else:
+                #if pi3IsEnabled:
+                #    pauseled(1)
+                #else:
                 time.sleep(1)
 
     def on_enter_s_finished(self):
         global varActStsMach
-        varActStsMach = '1C000'
+        varActStsMach = '0C000'
         print("Job finished... Restart?")
         finished()
         return
@@ -863,81 +1109,114 @@ def autostart_production(args):
     varFormState = "formStateproduction"
 
 
+# #
+# # Command line argument parser
+# #
+# def parse_args(manual_args=None):
+#     """
+#     CLI interface definition.
+#     """
+#     parser = argparse.ArgumentParser(
+#         description="IMMS ('Injection Molding Machine Simulator' Application)")
 #
-# Command line argument parser
+#     parser.add_argument(
+#         "-a",
+#         "--autostart",
+#         help="Automatically start production.",
+#         required=False,
+#         default=False,
+#         dest="autostart",
+#         action="store_true")
 #
-def parse_args(manual_args=None):
-    """
-    CLI interface definition.
-    """
-    parser = argparse.ArgumentParser(
-        description="IMMS ('Injection Molding Machine Simulator' Application)")
-
-    parser.add_argument(
-        "-a",
-        "--autostart",
-        help="Automatically start production.",
-        required=False,
-        default=False,
-        dest="autostart",
-        action="store_true")
-
-    parser.add_argument(
-        "--varATActSimPara1",
-        required=False,
-        default=5)
-
-    parser.add_argument(
-        "--varATActSimPara2period",
-        required=False,
-        default=20.0)
-
-    parser.add_argument(
-        "--varATActSimPara2amplitude",
-        required=False,
-        default=1.0)
-
-    parser.add_argument(
-        "--varATActSimPara2phase",
-        required=False,
-        default=0)
-
-    parser.add_argument(
-        "--varATActSimPara2offset",
-        required=False,
-        default=1.0)
-
-    parser.add_argument(
-        "--varPlotATActSimPara",
-        required=False,
-        default=False)
-
-    parser.add_argument(
-        "--varSetCntMld",
-        required=False,
-        default=10)
-
-    parser.add_argument(
-        "--varSetCntPrt",
-        required=False,
-        default=10000)
-
-    parser.add_argument(
-        "--varSetTimCyc",
-        required=False,
-        default=5.0)
-
-    parser.add_argument(
-        "--enableOPCUA",
-        help="Enable OPC UA client.",
-        required=False,
-        default=False,
-        dest="enableOPCUA",
-        action="store_true")
-
-    if manual_args is not None:
-        return parser.parse_args(manual_args)
-    return parser.parse_args()
+#     parser.add_argument(
+#         "-p",
+#         "--playback",
+#         help="Playback of production data recorded.",
+#         required=False,
+#         default=False,
+#         dest="playback",
+#         action="store_true")
+#
+#     parser.add_argument(
+#         "--varATActSimPara1",
+#         required=False,
+#         default=5)
+#
+#     parser.add_argument(
+#         "--varATActSimPara2period",
+#         required=False,
+#         default=20.0)
+#
+#     parser.add_argument(
+#         "--varATActSimPara2amplitude",
+#         required=False,
+#         default=1.0)
+#
+#     parser.add_argument(
+#         "--varATActSimPara2phase",
+#         required=False,
+#         default=0)
+#
+#     parser.add_argument(
+#         "--varATActSimPara2offset",
+#         required=False,
+#         default=1.0)
+#
+#     parser.add_argument(
+#         "--varPlotATActSimPara",
+#         required=False,
+#         default=False)
+#
+#     parser.add_argument(
+#         "--varSetCntMld",
+#         required=False,
+#         default=10)
+#
+#     parser.add_argument(
+#         "--varSetCntPrt",
+#         required=False,
+#         default=10000)
+#
+#     parser.add_argument(
+#         "--varSetTimCyc",
+#         required=False,
+#         default=5.0)
+#
+#     parser.add_argument(
+#         "--enableOPCUA",
+#         help="Enable OPC UA client.",
+#         required=False,
+#         default=False,
+#         dest="enableOPCUA",
+#         action="store_true")
+#
+#     parser.add_argument(
+#         "--enablePi3",
+#         help="Enable RGB LED control via Raspberry Pi 3 GPIOs.",
+#         required=False,
+#         default=False,
+#         dest="enablePi3",
+#         action="store_true")
+#
+#     parser.add_argument(
+#         "--enable5inchTouch",
+#         help="Enable optimized web gui for 5 inch touch screen.",
+#         required=False,
+#         default=False,
+#         dest="enable5inchTouch",
+#         action="store_true")
+#
+#     parser.add_argument(
+#         "--disableSamba",
+#         help="Disable Euromap 63 via Samba. Default share: ../em63_share/.",
+#         required=False,
+#         default=False,
+#         dest="disableSamba",
+#         action="store_true")
+#
+#     if manual_args is not None:
+#         return parser.parse_args(manual_args)
+#     return parser.parse_args()
 
 
 def main():
@@ -947,15 +1226,63 @@ def main():
     # Instantiate
     # IMM1 = vIMM()
     start_webapp()
+
+    if args.disableSamba:
+        global sambaIsEnabled
+        sambaIsEnabled = False
+
     start_EM63()
 
+    if args.playback:
+        global playbackIsEnabled, txtGETID, txtGETINFO
+        playbackIsEnabled = True
+        print("Playback is enabled.")
+        # open getid file for the playback
+        if file_exists("../em63_playback/em63_playback_getid.dat"):
+            txtGETID = file_read('../em63_playback/em63_playback_getid.dat')
+        else:
+            txtGETID = "No getid file found for playback."
+            print(txtGETID)
+        # open getinfo file for the playback
+        if file_exists("../em63_playback/em63_playback_getinfo.dat"):
+            # use it
+            txtGETINFO = file_read('../em63_playback/em63_playback_getinfo.dat')
+        else:
+            txtGETINFO = "No getinfo file found for playback."
+            print(txtGETINFO)
+
     if args.enableOPCUA:
-        start_OPCUA_server()
-        time.sleep(3) # wait for OPC UA server to start
-        start_OPCUA_client()
+        if (playbackIsEnabled == False):
+            start_OPCUA_server()
+            time.sleep(3) # wait for OPC UA server to start
+            start_OPCUA_client()
+        else:
+            print("Playback is enabled. OPC UA is currently not supported for playback.")
+
+    if args.enable5inchTouch:
+        global tocuh5inchIsEnabled
+        tocuh5inchIsEnabled = True
+        print("Support for 5 inch touch screen is enabled.")
+
+    if args.enablePi3:
+        global pi3IsEnabled, pi3IsEnabled_ini
+        if pi3IsEnabled_ini:
+            pi3IsEnabled = True
+            try:
+                start_rgb_led()
+                print("Support for RGB LED control via Raspberry Pi 3 is enabled.")
+            except:
+                pi3IsEnabled = False
+                print("No hardware support for RGB LED control via Raspberry Pi 3.")
+        else:
+            pi3IsEnabled = False
+            print("No hardware support for RGB LED control via Raspberry Pi 3.")
 
     if args.autostart:
-        autostart_production(args)
+        if (playbackIsEnabled == False):
+            autostart_production(args)
+        else:
+            print("Playback is enabled. Autostart is not compatible with playback.")
 
     while 0 < 1:
         IMM1.e_setting()
@@ -968,53 +1295,57 @@ def main():
             if IMM1.is_s_pause:
                 waitForProduction()
                 IMM1.e_proceed()
+                #if pi3IsEnabled:
+                #    pauseled(1)
                 x = 1
             if IMM1.is_s_error:
                 waitForProduction()
                 IMM1.e_confirm()
+                #if pi3IsEnabled:
+                #    alarmled(1)
                 x = 1
         IMM1.e_finished()
         IMM1.e_reset()
 
 
-def plotAllLocal(sinPlotX, sinPlotY, sinPlotY2, sinPlotY3):
-    pass  # deactivated plotting to reduce CPU load 
+#def plotAllLocal(sinPlotX, sinPlotY, sinPlotY2, sinPlotY3):
+#    pass  # deactivated plotting to reduce CPU load
     # plotActSimPara2(sinPlotX, sinPlotY, sinPlotY2)
     # plotActCnt(sinPlotY3)
 
 
-def plotActSimPara2(sinPlotX, sinPlotY, sinPlotY2):
-    x = np.array(sinPlotX)
-    y = np.array(sinPlotY)
-    y2 = np.array(sinPlotY2)
+# def plotActSimPara2(sinPlotX, sinPlotY, sinPlotY2):
+#     x = np.array(sinPlotX)
+#     y = np.array(sinPlotY)
+#     y2 = np.array(sinPlotY2)
+#
+#     trace1 = go.Scatter(
+#                 x=x,
+#                 y=y2,
+#                 mode='lines+markers',
+#                 name='@ActSimPara1'
+#                 )
+#     trace2 = go.Scatter(
+#                 x=x,
+#                 y=y,
+#                 mode='lines+markers',
+#                 name='@ActSimPara2'
+#                 )
+#
+#     plotly.offline.plot({
+#         "data": [trace1, trace2],
+#         "layout": go.Layout(title="Parameters")
+#     }, filename='templates/plotActSimPara.html', auto_open=False)
 
-    trace1 = go.Scatter(
-                x=x,
-                y=y2,
-                mode='lines+markers',
-                name='@ActSimPara1'
-                )
-    trace2 = go.Scatter(
-                x=x,
-                y=y,
-                mode='lines+markers',
-                name='@ActSimPara2'
-                )
 
-    plotly.offline.plot({
-        "data": [trace1, trace2],
-        "layout": go.Layout(title="Parameters")
-    }, filename='templates/plotActSimPara.html', auto_open=False)
-
-
-def plotActCnt(sinPlotY3):
-    x = np.array(sinPlotY3)
+#def plotActCnt(sinPlotY3):
+#    x = np.array(sinPlotY3)
     # data = [go.Histogram(x=x, histnorm='probability')]
     # plotly.offline.plot(data,  filename='ActCntCyc2.html', auto_open=False)
-    plotly.offline.plot({
-        "data": [go.Histogram(x=x, histnorm='probability')],
-        "layout": go.Layout(title="ActCntCyc")
-    }, filename='templates/plotActCntCyc.html', auto_open=False)
+#    plotly.offline.plot({
+#        "data": [go.Histogram(x=x, histnorm='probability')],
+#        "layout": go.Layout(title="ActCntCyc")
+#    }, filename='templates/plotActCntCyc.html', auto_open=False)
 
 
 if __name__ == "__main__":
