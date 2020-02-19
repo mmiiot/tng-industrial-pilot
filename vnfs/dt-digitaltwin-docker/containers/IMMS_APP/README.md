@@ -1,3 +1,5 @@
+# !!! Prototype !!! - no actual documentation yet - scripts are not tested
+
 # Default configuration of IMMS_APP
 
 ## General configuration
