@@ -160,7 +160,7 @@ SetTimCyc <Double>
 This data is equal to the data provided file-based.
 Data on the OPC UA server can be easily browsed and visualized using ``opcua-client`` or UaExpert from Unified Automation. 
 
-![IMMS web gui: Configuration - Euromap 63](imms_opcua.png "IMMS web gui and UaExpert: Configuration &rarr; OPC UA")
+![IMMS web gui: Configuration - OPCUA](graphics_gui/imms_opcua.png "IMMS web gui and UaExpert: Configuration &rarr; OPC UA")
 
 
 
