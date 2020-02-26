@@ -58,24 +58,34 @@ Select **Setup**
 1. Select **Parameter**
   &rarr; and define 2 configurable test parameters (optional)
   &rarr; press the button "Set Test Parameter Values"
+  
   ![IMMS web gui: Setup - Parameter](graphics_gui/imms_setup_parameter.png "IMMS web gui: Setup &rarr; Parameter")
+  
 2. Select **Job** 
   &rarr; and define your job (number of parts, parts per cycle, cycle time)
   &rarr; press the button "Set Job Parameter Values"
+  
   ![IMMS web gui: Setup - Job](graphics_gui/imms_setup_job.png "IMMS web gui: Setup &rarr; Job")
+  
 3. Select **Machine State** 
   &rarr; and select Production
   &rarr; and press the button "Set Machine State".
-  ![IMMS web gui: Setup - Set Machine State](graphics_gui/imms_setup_state.png "IMMS web gui: Setup &rarr; Set Machine State"
+  
+  ![IMMS web gui: Setup - Set Machine State](graphics_gui/imms_setup_state.png "IMMS web gui: Setup &rarr; Set Machine State")
+  
   While machine state is *production*, you can switch to *pause* and *error*.
   When job is finished switch from machine state *job completed* back to *idle*. 
+  
   ![IMMS web gui: Setup - State Machine for machine states](graphics_gui/statemachine.png "IMMS web gui: Setup &rarr; State Machine for machine states")
+  
 4. Select **Monitoring** and monitor the production simulation.
+
 ![IMMS web gui: Setup - Monitoring](graphics_gui/imms_monitoring.png "IMMS web gui: Setup &rarr; Monitoring")
 
 
 ## Check network configuration
 Select Configuration &rarr; and select Network to check the network configuration.
+
 ![IMMS web gui: Setup - Monitoring](graphics_gui/imms_configuration_network.png "IMMS web gui: Configuration &rarr; Network")
 
 
