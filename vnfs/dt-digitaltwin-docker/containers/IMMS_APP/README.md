@@ -106,7 +106,7 @@ Select **Configuration**
 2. Change the samba server address
 3. Press the button 
 
-![IMMS web gui: Configuration - Euromap 63](https://github.com/....png "IMMS web gui: Configuration &rarr; Euromap 63")
+![IMMS web gui: Configuration - Euromap 63](graphics_gui/imms_configuration_em63.png "IMMS web gui: Configuration &rarr; Euromap 63")
 
 
 ### Local directory
