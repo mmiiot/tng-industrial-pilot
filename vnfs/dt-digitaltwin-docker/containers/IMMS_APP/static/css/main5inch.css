@@ -17,7 +17,7 @@ header {
   height: 35px;
   width: 100%;
   opacity: .9;
-  margin-bottom: 10px;
+  margin-bottom: 1px;
 }
 
 header h1.logo {
@@ -26,6 +26,8 @@ header h1.logo {
   color: #fff;
   text-transform: uppercase;
   float: left;
+  margin-right: 0px;
+  padding-right: 0px
 }
 
 header h1.logo:hover {
@@ -60,7 +62,7 @@ header h1.logo:hover {
  */
 
 .container {
-  width: 940px;
+  width: 760px;
   margin: 0 auto;
 }
 
@@ -73,8 +75,8 @@ div.content {
 }
 
 h2 {
-  font-size: 3em;
-  margin-top: 40px;
+  font-size: 1.7em;
+  margin: 0px;
   text-align: left;
   letter-spacing: -2px;
 }

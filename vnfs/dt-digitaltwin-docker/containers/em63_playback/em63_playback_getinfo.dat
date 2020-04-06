@@ -1,7 +1,7 @@
 MachVendor,	        "Weidmueller";
 MachNbr,	        "00001";
-MachDesc,	        "Weidmueller IMM Simulator";
-ContrType,	        "WIMMS";
+MachDesc,	        "Weidmueller IMM Simulator Playback";
+ContrType,	        "WIMMSp";
 ContrVersion,	    "1.0";
 Version,	        "2020-02-07";
 MaxJobs,	        3;
